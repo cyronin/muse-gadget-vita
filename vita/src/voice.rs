@@ -1,7 +1,8 @@
-//! Muse's reply, spoken. One thread fetches the speech from OpenAI and a
-//! second plays it, so playing starts while the rest is still arriving.
+//! Muse's reply, spoken. One thread fetches the speech from Azure AI Speech
+//! or OpenAI, and a second plays it, so playing starts while the rest is
+//! still arriving.
 
-use crate::{clock, files, muse};
+use crate::{azure, clock, files, muse};
 use muse_link::{secure, speech};
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -11,6 +12,10 @@ use vitasdk_sys as sys;
 
 const KEY: &str = "state/openai_key.txt";
 const VOICE: &str = "alloy";
+const AZURE_KEY: &str = "state/azure_key.txt";
+const AZURE_REGION: &str = "state/azure_region.txt";
+/// Optional: an Azure voice name, such as en-US-AvaNeural.
+const AZURE_VOICE: &str = "state/azure_voice.txt";
 /// The most of one answer that is kept, in samples.
 const ROOM: usize = speech::RATE as usize * 33;
 /// Samples handed to the speaker at a time. The port wants a multiple of 64.
@@ -41,13 +46,31 @@ pub fn say(text: &str) {
     *TEXT.lock().unwrap() = Some(String::from(text));
 }
 
+/// One word from a file on the card, such as a key.
+fn word(path: &str) -> Option<String> {
+    files::read(path).and_then(|file| speech::key_from(&file))
+}
+
+/// Azure, when its key and region are on the card. It is preferred, as the
+/// one with a free allowance.
+fn azure_account() -> Option<azure::Account> {
+    Some(azure::Account {
+        key: word(AZURE_KEY)?,
+        region: word(AZURE_REGION)?,
+        voice: word(AZURE_VOICE).unwrap_or_else(|| azure::DEFAULT_VOICE.into()),
+    })
+}
+
+/// Whether there is a key on the card to speak with.
+pub fn can_speak() -> bool {
+    azure_account().is_some() || word(KEY).is_some()
+}
+
 fn fetch(text: &str) -> Result<(), String> {
-    let key = files::read(KEY).and_then(|file| speech::key_from(&file)).ok_or("no OpenAI key on the memory card")?;
-    let settings = secure::settings(Arc::new(clock::Rtc)).map_err(|error| format!("{:?}", error))?;
     let samples = SAMPLES.load(Ordering::Relaxed);
     let mut odd: Option<u8> = None;
     let mut arrived = 0;
-    let outcome = speech::speak(&mut muse::Vita, settings, &key, VOICE, text, &mut |piece| {
+    let mut heard = |piece: &[u8]| {
         for &byte in piece {
             match odd.take() {
                 None => odd = Some(byte),
@@ -61,8 +84,15 @@ fn fetch(text: &str) -> Result<(), String> {
             }
         }
         ARRIVED.store(arrived, Ordering::Release);
-    });
-    outcome.map_err(|error| format!("{:?} after {} samples", error, arrived))
+    };
+    let outcome = if let Some(account) = azure_account() {
+        azure::speak(&account, text, &mut heard)
+    } else {
+        let key = word(KEY).ok_or("no Azure or OpenAI key on the memory card")?;
+        let settings = secure::settings(Arc::new(clock::Rtc)).map_err(|error| format!("{:?}", error))?;
+        speech::speak(&mut muse::Vita, settings, &key, VOICE, text, &mut heard).map_err(|error| format!("{:?}", error))
+    };
+    outcome.map_err(|error| format!("{} after {} samples", error, ARRIVED.load(Ordering::Relaxed)))
 }
 
 fn fetching() {

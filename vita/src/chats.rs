@@ -1,5 +1,5 @@
 //! The chats the Vita can talk in: Muse's main chat, and side chats the user
-//! starts and picks from the menu on Triangle. A side chat is only an id
+//! starts and picks from the menu on Select. A side chat is only an id
 //! that the Vita sends with each question; Muse starts the chat the first
 //! time it sees one. The list and the choice are kept on the memory card.
 

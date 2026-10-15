@@ -1,6 +1,6 @@
-//! The chat menu, opened with Triangle: the main chat and the side chats,
+//! The chat menu, opened with Select: the main chat and the side chats,
 //! with Up and Down to move, Cross to choose, Square to forget a side chat
-//! and Circle or Triangle to close it.
+//! and Circle or Select to close it.
 
 use crate::chats::Chats;
 use crate::font::{self, CELL};

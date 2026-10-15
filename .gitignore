@@ -14,3 +14,6 @@ assets/avatar/
 state/
 .sdk_token
 .openai_key
+.azure_key
+.azure_region
+.azure_voice

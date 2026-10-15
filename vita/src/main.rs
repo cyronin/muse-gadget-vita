@@ -1,5 +1,6 @@
 mod audio;
 mod avatar;
+mod azure;
 mod chats;
 mod clock;
 mod files;
@@ -26,6 +27,13 @@ use std::sync::atomic::Ordering;
 const PATIENCE_MS: u32 = 45_000;
 /// How long the avatar shows that an answer came when it cannot be spoken.
 const UNSPOKEN_MS: u32 = 3000;
+/// How long the talk button must stay up before the take ends. A resting
+/// finger drops out of the touchscreen's readings for a moment now and then,
+/// and one such moment cut a question short on a real Vita.
+const LET_GO_MS: u32 = 250;
+/// How long the note that the text was turned on or off stays up.
+const NOTE_MS: u32 = 1500;
+const NOTE_COLOUR: u32 = screen::colour(150, 150, 160);
 
 fn main() {
     files::prepare();
@@ -54,6 +62,12 @@ fn main() {
     let mut chats = chats::Chats::load();
     let mut picker = picker::Picker::default();
     let mut before = input::Held::default();
+    // Without a voice, text is the only way to get the answer.
+    let mut show_text = reply::wanted().unwrap_or(!voice::can_speak());
+    say!("text {} at start", if show_text { "on" } else { "off" });
+    let mut text_was_held = false;
+    // The note's words and when it goes, while one is up.
+    let mut note: Option<(&[u8], u32)> = None;
     let mut place = avatar.centred();
     // Half size, centred in the room left of the text.
     let beside_text = {
@@ -61,6 +75,7 @@ fn main() {
         Place { left: (reply::LEFT - size) / 2, top: (screen::HEIGHT - size) / 2, block: avatar::BLOCK / 2 }
     };
     let mut mood = Mood::Boot;
+    let mut talk_seen_ms: Option<u32> = None;
     let mut since = Timer::start();
     let mut shown_ms = 0;
     loop {
@@ -87,7 +102,11 @@ fn main() {
         }
         before = held;
         let may_talk = link == Link::Online && turn == muse::NO_QUESTION && !picker.is_open();
-        let talking = may_talk && held.talk;
+        if held.talk {
+            talk_seen_ms = Some(now_ms);
+        }
+        let holding = talk_seen_ms.is_some_and(|seen_ms| now_ms.wrapping_sub(seen_ms) < LET_GO_MS);
+        let talking = may_talk && holding;
         audio::TALKING.store(talking, Ordering::Relaxed);
         // A new question, or Circle, puts the last exchange away.
         if talking || (held.dismiss && !picker.is_open()) {
@@ -129,7 +148,21 @@ fn main() {
             since.lap();
         }
         shown_ms += since.lap();
-        let has_text = panel.update();
+        // Triangle turns the text on or off, once per press.
+        if held.text && !text_was_held {
+            show_text = !show_text;
+            reply::set_wanted(show_text);
+            say!("text {}", if show_text { "on" } else { "off" });
+            note = Some((if show_text { b"text on" } else { b"text off" }, now_ms.wrapping_add(NOTE_MS)));
+            screen.wipe();
+        }
+        text_was_held = held.text;
+        if note.is_some_and(|(_, until_ms)| (until_ms.wrapping_sub(now_ms) as i32) <= 0) {
+            note = None;
+            screen.wipe();
+        }
+        // Kept up to date while hidden, so turning it on shows the last reply.
+        let has_text = panel.update() && show_text;
         let wanted = if has_text { beside_text } else { avatar.centred() };
         if wanted != place {
             place = wanted;
@@ -144,6 +177,9 @@ fn main() {
             panel.draw(&mut screen);
         }
         status::draw(&mut screen, link, now_ms);
+        if let Some((words, _)) = note {
+            font::draw(&mut screen, screen::WIDTH - 20 - words.len() * font::CELL, 20, words, NOTE_COLOUR);
+        }
         status::draw_chat(&mut screen, &chats.badge());
         if picker.is_open() {
             picker.draw(&mut screen, &chats);
