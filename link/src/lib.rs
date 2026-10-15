@@ -28,6 +28,12 @@ mod ws;
 pub use channel::Security;
 pub use client::{App, BadConfig, Client, Config, Event, NotSaved, Pairing, Poll, Refused, State, Trouble, Vault};
 
+/// A new random id for a side chat, in the UUID form Muse's own examples use.
+/// `None` if the system has no randomness to give.
+pub fn new_chat_id() -> Option<alloc::string::String> {
+    session::uuid4().ok()
+}
+
 /// A connected byte stream, such as a TCP socket. Each call waits a bounded
 /// time and fails with [`Lost`] past it.
 pub trait Stream {

@@ -95,7 +95,7 @@ impl From<ws::Bad> for Fault {
 /// and kept across attempts until a connection uses it.
 pub(crate) type Hello = (Handshake, [u8; 32]);
 
-fn uuid4() -> Result<String, Fault> {
+pub(crate) fn uuid4() -> Result<String, Fault> {
     let mut bytes = [0u8; 16];
     getrandom::getrandom(&mut bytes).map_err(|_| Fault::Protocol)?;
     bytes[6] = bytes[6] & 0x0F | 0x40;
@@ -761,7 +761,14 @@ impl<W: Wire> Session<W> {
                 return Ok(match chat.ack.take() {
                     Some(Err(why)) => Some(Err(why)),
                     Some(Ok(())) if !(200..300).contains(&chat.ack_status) => {
-                        Some(Err(format!("Muse did not take the message: HTTP {}", chat.ack_status)))
+                        // What Muse says about a refusal is the best clue to why.
+                        let said: String = String::from_utf8_lossy(&chat.ack_body).chars().filter(|c| (' '..='~').contains(c)).take(160).collect();
+                        let said = said.trim();
+                        Some(Err(if said.is_empty() {
+                            format!("Muse did not take the message: HTTP {}", chat.ack_status)
+                        } else {
+                            format!("Muse did not take the message: HTTP {}: {said}", chat.ack_status)
+                        }))
                     }
                     Some(Ok(())) => {
                         let answer = serde_json::from_slice::<Value>(&chat.ack_body).unwrap_or_default();
@@ -850,6 +857,13 @@ mod tests {
         let mut expected = Vec::new();
         ws::base64(&wav, &mut expected);
         assert_eq!(item["data_base64"].as_str().unwrap().as_bytes(), expected);
+    }
+
+    #[test]
+    fn a_chat_id_is_a_version_four_uuid() {
+        let id = crate::new_chat_id().unwrap();
+        assert_eq!(id.len(), 36);
+        assert!(id.as_bytes()[14] == b'4' && "89ab".contains(&id[19..20]));
     }
 
     #[test]
