@@ -2,6 +2,7 @@ mod avatar;
 mod clock;
 mod files;
 mod input;
+mod net;
 mod report;
 mod screen;
 mod status;
@@ -24,6 +25,14 @@ fn main() {
     match store::load() {
         Ok(saved) => say!("paired as {}", saved.node_id),
         Err(why) => say!("not paired: {}", why),
+    }
+    match net::start() {
+        // Until the connection to Muse is ported, this only waits for Wi-Fi.
+        Ok(()) => drop(std::thread::spawn(|| match net::join() {
+            Ok(()) => say!("Wi-Fi joined: {:?}", net::wifi()),
+            Err(why) => say!("{}", why),
+        })),
+        Err(why) => say!("FAIL: {}", why),
     }
     input::start();
     let mut screen = Screen::open();
