@@ -1,18 +1,37 @@
 //! What Muse heard and what it answered, written out beside the avatar, for
-//! when the reply cannot be spoken or the user would rather read it.
+//! when the reply cannot be spoken or the user would rather read it. It is
+//! off until the user turns it on, and the choice is kept on the card.
 
+use crate::files;
 use crate::font::{self, CELL};
 use crate::screen::{self, colour, Screen, BLACK};
 use std::sync::Mutex;
 
 /// Where the text goes: right of the half-size avatar, to the screen's edge.
 pub const LEFT: usize = 336;
-const TOP: usize = 32;
+/// Below the status corner and the note when the text is turned on or off.
+const TOP: usize = 40;
 const COLUMNS: usize = (screen::WIDTH - 16 - LEFT) / CELL;
 /// The last column is kept for the marks that say there is more.
 const TEXT_COLUMNS: usize = COLUMNS - 1;
 const LINE: usize = CELL + 4;
 const ROWS: usize = (screen::HEIGHT - 2 * TOP) / LINE;
+/// Present, holding "on", while the user wants replies shown as text.
+const SETTING: &str = "show-text.txt";
+
+/// Whether the user turned the text on, on this run or an earlier one.
+pub fn wanted() -> bool {
+    files::read(SETTING).is_some_and(|file| file.trim_ascii() == b"on")
+}
+
+pub fn set_wanted(on: bool) {
+    if on {
+        files::write(SETTING, b"on");
+    } else {
+        files::remove(SETTING);
+    }
+}
+
 /// How often a held Up or Down moves the text a line.
 const SCROLL_EVERY_MS: u32 = 80;
 
