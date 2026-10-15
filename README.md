@@ -35,7 +35,7 @@ This is a port of [wobsoriano/muse-gadget-psp](https://github.com/wobsoriano/mus
   identity and tokens to the Vita. See *Pair it with Muse*.
 - **A key for the voice**, if you want one: Azure AI Speech (which has a
   free monthly allowance) or OpenAI. Without one the Vita still hears you
-  and shows Muse's answer on the screen, but stays silent. (Muse sends
+  and can show Muse's answer on the screen, but stays silent. (Muse sends
   text, not audio — something has to speak it.)
 
 ## Install
@@ -140,10 +140,11 @@ run **Muse** from the LiveArea.
 Hold the **right shoulder button** (or keep a finger on the touchscreen) to
 talk, release to send. Press **PS** to quit to LiveArea.
 
-What Muse heard and what it answers are written out beside the avatar as
-the reply arrives, so the Vita is useful without a voice too. **Up** and
-**Down** scroll a long answer, **Circle** puts it away, and talking again
-starts afresh.
+Press **Triangle** to have what Muse heard and what it answers written out
+beside the avatar as the reply arrives, which makes the Vita useful without
+a voice too. It is off until you turn it on, and the Vita remembers your
+choice. While it is on, **Up** and **Down** scroll a long answer, **Circle**
+puts it away, and talking again starts afresh.
 
 The corner of the screen shows whether the Vita can reach Muse, and the
 avatar shows what it is doing:
@@ -156,7 +157,7 @@ avatar shows what it is doing:
 | The avatar in blue | Listening while you hold R |
 | The avatar in pink, with thought dots | Your question is on its way, or Muse is answering |
 | The avatar in green, with sound waves | Speaking the answer |
-| Hearts for a few seconds, no sound | Muse answered and the Vita could not speak it. The answer is on the screen. |
+| Hearts for a few seconds, no sound | Muse answered and the Vita could not speak it. Press Triangle to read it. |
 
 **What Muse can do to the Vita.** Ask Muse from any device:
 
