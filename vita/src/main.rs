@@ -33,7 +33,10 @@ fn main() {
         return;
     };
     match net::start() {
-        Ok(()) => muse::start(),
+        Ok(()) => {
+            muse::start();
+            voice::start();
+        }
         Err(why) => {
             say!("FAIL: {}", why);
             muse::LINK.store(muse::DOWN, Ordering::Relaxed);
