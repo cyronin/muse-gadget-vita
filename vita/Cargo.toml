@@ -27,3 +27,5 @@ vitasdk-sys = { version = "0.3.3", features = [
 [package.metadata.vita]
 title_id = "MUSE00001"
 title_name = "Muse"
+# The icon and LiveArea pictures, drawn by tools/make_icon.py.
+assets = "static"
