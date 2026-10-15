@@ -1,5 +1,5 @@
 //! A small light and a word in the corner of the screen, for whether Muse
-//! can be reached.
+//! can be reached, and under them the side chat in use.
 
 use crate::font::{self, CELL, SCALE};
 use crate::screen::{colour, Screen, BLACK};
@@ -50,4 +50,16 @@ pub fn draw(screen: &mut Screen, link: Link, now_ms: u32) {
         }
     }
     font::draw(screen, LEFT + 12 * SCALE, TOP, link.word().as_bytes(), WORD_COLOUR);
+}
+
+/// The most characters of a chat's name the corner has room for.
+const BADGE_COLUMNS: usize = 24;
+
+/// Draws the name of the side chat in use under the light, or nothing for
+/// the main chat.
+pub fn draw_chat(screen: &mut Screen, name: &str) {
+    let top = TOP + CELL + 6;
+    screen.fill(LEFT, top, BADGE_COLUMNS * CELL, CELL, BLACK);
+    let name = &name.as_bytes()[..name.len().min(BADGE_COLUMNS)];
+    font::draw(screen, LEFT, top, name, WORD_COLOUR);
 }

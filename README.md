@@ -136,6 +136,13 @@ the reply arrives, so the Vita is useful without a voice too. **Up** and
 **Down** scroll a long answer, **Circle** puts it away, and talking again
 starts afresh.
 
+**Triangle** opens the chat menu, between questions. Questions go to Muse's
+main chat unless you pick a side chat there: **Up** and **Down** move,
+**Cross** chooses, and "+ New side chat" starts one. **Square** forgets a side
+chat from the list (Muse keeps it) and **Circle** closes the menu. The side
+chat in use is named under the light in the corner. The list and the choice
+are kept in `state/chats.txt` on the memory card, so they survive a restart.
+
 The corner of the screen shows whether the Vita can reach Muse, and the
 avatar shows what it is doing:
 

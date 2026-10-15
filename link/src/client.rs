@@ -8,7 +8,7 @@
 
 use crate::channel::{Fault, Security};
 use crate::pace::{Backoff, Door, REFUSED_WAIT_MS};
-use crate::session::{log, Ask, End, Hello, Session, LARGEST_WAV};
+use crate::session::{log, Ask, End, Hello, Question, Session, LARGEST_WAV};
 use crate::url::{encode_component, Endpoint};
 use crate::{api, Clock, Net};
 use alloc::{format, string::String, vec::Vec};
@@ -309,36 +309,38 @@ impl<N: Net, C: Clock, V: Vault> Client<N, C, V> {
     }
 
     /// Asks Muse a question. The reply arrives as [`Event`]s during later
-    /// polls, ending with exactly one `Done` or `Failed`.
-    pub fn ask_text(&mut self, text: &str) -> Result<(), Refused> {
+    /// polls, ending with exactly one `Done` or `Failed`. `side` is the id of
+    /// a side chat to ask in, which Muse starts if it has not seen the id; with
+    /// `None` the question goes to the main chat.
+    pub fn ask_text(&mut self, text: &str, side: Option<&str>) -> Result<(), Refused> {
         if text.trim().is_empty() {
             return Err(Refused::Empty);
         }
         if text.len() > LONGEST_QUESTION {
             return Err(Refused::TooBig);
         }
-        self.queue(Ask::Text(text.into()))
+        self.queue(Question::Text(text.into()), side)
     }
 
     /// Asks with a recording, a WAV file of at most 600 KB.
-    pub fn ask_voice(&mut self, wav: Vec<u8>) -> Result<(), Refused> {
+    pub fn ask_voice(&mut self, wav: Vec<u8>, side: Option<&str>) -> Result<(), Refused> {
         if wav.is_empty() {
             return Err(Refused::Empty);
         }
         if wav.len() > LARGEST_WAV {
             return Err(Refused::TooBig);
         }
-        self.queue(Ask::Voice(wav))
+        self.queue(Question::Voice(wav), side)
     }
 
-    fn queue(&mut self, ask: Ask) -> Result<(), Refused> {
+    fn queue(&mut self, question: Question, side: Option<&str>) -> Result<(), Refused> {
         if self.state != State::Connected {
             return Err(Refused::Offline);
         }
         if self.asking() {
             return Err(Refused::Busy);
         }
-        self.ask = Some(ask);
+        self.ask = Some(Ask { question, side: side.filter(|side| !side.is_empty()).map(String::from) });
         Ok(())
     }
 
@@ -693,7 +695,7 @@ mod tests {
         let mut client = client(|_| {}).unwrap();
         let mut seen = Vec::new();
         assert_eq!(client.state(), State::Connecting);
-        assert_eq!(client.ask_text("too early"), Err(Refused::Offline));
+        assert_eq!(client.ask_text("too early", None), Err(Refused::Offline));
         let mut rests = Vec::new();
         for _ in 0..12 {
             if let Poll::Resting(ms) = client.poll(&mut seen, 0) {
@@ -704,7 +706,7 @@ mod tests {
         }
         assert_eq!(seen, ["Unreachable(Network)"], "said once, and it stays");
         assert_eq!(rests, [2_000, 4_000, 8_000, 16_000]);
-        assert_eq!(client.ask_voice(Vec::new()), Err(Refused::Empty));
-        assert_eq!(client.ask_voice(alloc::vec![0; LARGEST_WAV + 1]), Err(Refused::TooBig));
+        assert_eq!(client.ask_voice(Vec::new(), None), Err(Refused::Empty));
+        assert_eq!(client.ask_voice(alloc::vec![0; LARGEST_WAV + 1], None), Err(Refused::TooBig));
     }
 }

@@ -135,6 +135,25 @@ def test_session(driver, tmp_path):
     assert (saved["access_token"], saved["refresh_token"]) == ("new-access", "r2") and saved["saved_at"] > 0
 
 
+def test_side_chat(driver, tmp_path):
+    """The main chat sends no id; a side chat sends its id, and its own subscription follows it."""
+    side = 'side "1"'
+    events, transcript = run_session(driver, tmp_path, ["--voice"], ["--voice", "--side=" + side])
+
+    check_api(transcript)
+    chats = transcript["chats"]
+    assert chats[0] == text_chat("what is up")
+    assert "session_id" not in chats[0][0]
+    assert chats[1] == [{**text_chat("and now")[0], "session_id": side}, "musegadget", True]
+    assert chats[2][0]["session_id"] == side and chats[2][0]["items"][0]["filename"] == "voice_note.wav"
+    # Moving to the side chat opens a subscription for it, and the third question reuses that one.
+    assert transcript["subscribes"] == 2
+    assert transcript["subscribe_bodies"] == [{}, {"session_id": side}]
+    assert [e[1:] for e in events if e[0] == "ask"] == [
+        ["you said: what is up", "you said: what is up"], ["you said: and now", "you said: and now"],
+        ["you said: a voice note", "you said: a voice note"]]
+
+
 def test_voice_note(driver, tmp_path):
     events, transcript = run_session(driver, tmp_path, ["--voice"], ["--voice"])
 

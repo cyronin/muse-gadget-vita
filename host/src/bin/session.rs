@@ -1,7 +1,7 @@
 //! Runs the Muse client against tests/fake_muse.py over real sockets, from
 //! one thread, the way the PSP app drives it.
 //!
-//! Usage: session API_PORT VM_PORT STATE_DIR [--voice] [--save-fails=N] [--until-unreachable] [--tls=CA_DER]
+//! Usage: session API_PORT VM_PORT STATE_DIR [--voice] [--side=ID] [--save-fails=N] [--until-unreachable] [--tls=CA_DER]
 //!
 //! With `--tls` every connection is TLS to "localhost", checked against the
 //! one authority in CA_DER. Without it they are plaintext.
@@ -211,12 +211,15 @@ enum Question {
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let [api_port, vm_port, state_dir, flags @ ..] = args.as_slice() else {
-        eprintln!("usage: session API_PORT VM_PORT STATE_DIR [--voice] [--save-fails=N] [--until-unreachable] [--tls=CA_DER]");
+        eprintln!("usage: session API_PORT VM_PORT STATE_DIR [--voice] [--side=ID] [--save-fails=N] [--until-unreachable] [--tls=CA_DER]");
         std::process::exit(2);
     };
     let flag = |name: &str| flags.iter().any(|flag| flag == name);
     let save_fails = flags.iter().find_map(|flag| flag.strip_prefix("--save-fails=")).map_or(0, |count| count.parse().unwrap());
 
+    // With --side the first question goes to the main chat and the rest to
+    // the side chat of that id.
+    let side = flags.iter().find_map(|flag| flag.strip_prefix("--side="));
     let mut questions = vec![Question::Text("what is up"), Question::Text("and now")];
     if flag("--voice") {
         questions.push(Question::Voice);
@@ -244,6 +247,7 @@ fn main() {
     driver.event(Event::State(client.state()));
 
     let mut attempts = 0;
+    let mut asked_before = 0;
     let mut waiting = false;
     let ok = loop {
         if started.elapsed() > LONGEST_RUN {
@@ -261,6 +265,7 @@ fn main() {
             match driver.ended.take() {
                 Some(true) => {
                     questions.next();
+                    asked_before += 1;
                     (waiting, attempts) = (false, 0);
                 }
                 // A question that failed because the session dropped is asked
@@ -270,15 +275,16 @@ fn main() {
                 None => {}
             }
         } else if let Some(question) = questions.peek() {
+            let side = side.filter(|_| asked_before > 0);
             let asked = match question {
-                Question::Text(text) => client.ask_text(text),
+                Question::Text(text) => client.ask_text(text, side),
                 Question::Voice => {
                     let wav = make_wav();
                     if attempts == 0 {
                         let digest: String = Sha256::digest(&wav).iter().map(|byte| format!("{byte:02x}")).collect();
                         driver.record(json!(["voice", wav.len(), digest]));
                     }
-                    client.ask_voice(wav)
+                    client.ask_voice(wav, side)
                 }
             };
             match asked {

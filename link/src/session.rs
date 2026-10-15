@@ -47,10 +47,17 @@ macro_rules! log {
 }
 pub(crate) use log;
 
-/// A question on its way to Muse.
-pub(crate) enum Ask {
+/// What is asked.
+pub(crate) enum Question {
     Text(String),
     Voice(Vec<u8>),
+}
+
+/// A question on its way to Muse, and the chat it goes to: a side chat's id,
+/// or `None` for the main chat.
+pub(crate) struct Ask {
+    pub question: Question,
+    pub side: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -107,6 +114,8 @@ fn uuid4() -> Result<String, Fault> {
 /// for the session.
 struct Subscription {
     stream: i64,
+    /// The side chat it follows, `None` for the main chat.
+    side: Option<String>,
     /// The start of a line whose end has not arrived.
     line: Vec<u8>,
     closed: Option<String>,
@@ -123,10 +132,14 @@ struct Upload {
 }
 
 impl Upload {
-    fn new(wav: Vec<u8>, device_id: &str) -> Upload {
+    fn new(wav: Vec<u8>, device_id: &str, side: Option<&str>) -> Upload {
         let mut body = Vec::with_capacity(2 * BODY_PIECE);
         body.extend_from_slice(br#"{"message":"","output_modality":"text","device_id":"#);
         body.extend_from_slice(Value::from(device_id).to_string().as_bytes());
+        if let Some(side) = side {
+            body.extend_from_slice(br#","session_id":"#);
+            body.extend_from_slice(Value::from(side).to_string().as_bytes());
+        }
         body.extend_from_slice(br#","items":[{"type":"file","mime_type":"audio/wav","filename":"voice_note.wav","data_base64":""#);
         Upload { wav, encoded: 0, body, tail_added: false }
     }
@@ -670,7 +683,11 @@ impl<W: Wire> Session<W> {
     }
 
     fn start_chat(&mut self, ask: Ask, now: u64) -> Result<Chat, Fault> {
-        if self.subscription.as_ref().is_none_or(|subscription| subscription.closed.is_some()) {
+        let Ask { question, side } = ask;
+        // One subscription follows one chat. Moving to another chat leaves
+        // the old stream unread; its frames are ignored from then on.
+        let followed = self.subscription.as_ref().is_some_and(|subscription| subscription.closed.is_none() && subscription.side == side);
+        if !followed {
             let (stream, request_id) = (self.sender.new_stream(), uuid4()?);
             let headers = [
                 ("Content-Type", "application/json"),
@@ -678,23 +695,31 @@ impl<W: Wire> Session<W> {
                 ("x-request-id", request_id.as_str()),
                 ("x-app-id", APP_ID),
             ];
-            self.send(stream, Part::Request { path: "/chat/subscribe", headers: &headers, body: b"{}", end: true })?;
-            self.subscription = Some(Subscription { stream, line: Vec::new(), closed: None });
+            let body = match &side {
+                Some(side) => json!({"session_id": side}).to_string(),
+                None => "{}".into(),
+            };
+            self.send(stream, Part::Request { path: "/chat/subscribe", headers: &headers, body: body.as_bytes(), end: true })?;
+            self.subscription = Some(Subscription { stream, side: side.clone(), line: Vec::new(), closed: None });
         }
         let (stream, request_id) = (self.sender.new_stream(), uuid4()?);
         let headers = [("x-request-id", request_id.as_str()), ("x-app-id", APP_ID), ("Content-Type", "application/json")];
         let path = "/chat/stream";
         // device_id is what has Muse take the turn as this device's, and
         // send the commands it leads to back here.
-        let (phase, voice) = match ask {
-            Ask::Text(message) => {
-                let body = json!({"message": message, "output_modality": "text", "device_id": self.device_id}).to_string();
+        let (phase, voice) = match question {
+            Question::Text(message) => {
+                let mut body = json!({"message": message, "output_modality": "text", "device_id": self.device_id});
+                if let Some(side) = &side {
+                    body["session_id"] = side.as_str().into();
+                }
+                let body = body.to_string();
                 self.send(stream, Part::Request { path, headers: &headers, body: body.as_bytes(), end: true })?;
                 (Phase::AwaitingAck { sent_ms: now }, false)
             }
-            Ask::Voice(wav) => {
+            Question::Voice(wav) => {
                 self.send(stream, Part::Request { path, headers: &headers, body: &[], end: false })?;
-                (Phase::Sending(Upload::new(wav, &self.device_id)), true)
+                (Phase::Sending(Upload::new(wav, &self.device_id, side.as_deref())), true)
             }
         };
         Ok(Chat {
@@ -803,7 +828,7 @@ mod tests {
     #[test]
     fn a_voice_note_body_comes_out_in_even_pieces_and_decodes_back() {
         let wav: Vec<u8> = (0..100_000u32).map(|i| (i * 7) as u8).collect();
-        let mut upload = Upload::new(wav.clone(), "home\"link");
+        let mut upload = Upload::new(wav.clone(), "home\"link", Some("side \"1\""));
         let (mut body, mut sizes) = (Vec::new(), Vec::new());
         loop {
             let (piece, last) = upload.piece();

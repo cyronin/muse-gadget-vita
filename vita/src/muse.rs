@@ -1,7 +1,7 @@
 //! The connection to Muse, on a thread of its own. Reaching Muse takes
 //! seconds at a time, and the avatar must keep moving meanwhile.
 
-use crate::{clock, net, reply, store, voice};
+use crate::{chats, clock, net, reply, store, voice};
 use muse_link::{secure, App, Client, Clock, Config, Event, Lost, Net, Poll, Security, State};
 use std::sync::atomic::{AtomicU32, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
@@ -262,7 +262,9 @@ fn serve() -> Result<(), String> {
         };
         if let Some(wav) = fresh.or(again) {
             app.unheard = Some(wav.clone());
-            if let Err(refused) = client.ask_voice(wav) {
+            // The side chat chosen when the question was asked, or the one
+            // chosen now if it is asked again.
+            if let Err(refused) = client.ask_voice(wav, chats::current().as_deref()) {
                 crate::say!("question refused: {:?}", refused);
                 app.unheard = None;
                 TURN.store(NO_QUESTION, Ordering::Relaxed);

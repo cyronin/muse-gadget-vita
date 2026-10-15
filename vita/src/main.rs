@@ -1,11 +1,13 @@
 mod audio;
 mod avatar;
+mod chats;
 mod clock;
 mod files;
 mod font;
 mod input;
 mod muse;
 mod net;
+mod picker;
 mod reply;
 mod report;
 mod screen;
@@ -49,6 +51,9 @@ fn main() {
 
     let mut screen = Screen::open();
     let mut panel = reply::Panel::new();
+    let mut chats = chats::Chats::load();
+    let mut picker = picker::Picker::default();
+    let mut before = input::Held::default();
     let mut place = avatar.centred();
     // Half size, centred in the room left of the text.
     let beside_text = {
@@ -67,15 +72,27 @@ fn main() {
             _ => Link::Connecting,
         };
         let mut turn = muse::TURN.load(Ordering::Relaxed);
-        let may_talk = link == Link::Online && turn == muse::NO_QUESTION;
         let held = input::held();
+        let mut speech = voice::STATE.load(Ordering::Relaxed);
+        // The menu opens between questions only, so a question never changes
+        // chat on its way. Moving to another chat puts the last exchange away.
+        let idle = turn == muse::NO_QUESTION && speech == voice::SILENT && !audio::RECORDING.load(Ordering::Relaxed);
+        match picker.update(&mut chats, &held, &before, idle) {
+            picker::Change::Nothing => {}
+            picker::Change::Opened | picker::Change::Closed => screen.wipe(),
+            picker::Change::Chose => {
+                screen.wipe();
+                reply::clear();
+            }
+        }
+        before = held;
+        let may_talk = link == Link::Online && turn == muse::NO_QUESTION && !picker.is_open();
         let talking = may_talk && held.talk;
         audio::TALKING.store(talking, Ordering::Relaxed);
         // A new question, or Circle, puts the last exchange away.
-        if talking || held.dismiss {
+        if talking || (held.dismiss && !picker.is_open()) {
             reply::clear();
         }
-        let mut speech = voice::STATE.load(Ordering::Relaxed);
         if speech == voice::FAILED && turn == muse::NO_QUESTION {
             // Something Muse said by itself could not be spoken. It is on
             // the screen, and the voice is free for the next.
@@ -121,10 +138,16 @@ fn main() {
         screen.begin();
         avatar.draw(&mut screen, mood, shown_ms, place);
         if has_text {
-            panel.scroll(held.up, held.down, now_ms);
+            if !picker.is_open() {
+                panel.scroll(held.up, held.down, now_ms);
+            }
             panel.draw(&mut screen);
         }
         status::draw(&mut screen, link, now_ms);
+        status::draw_chat(&mut screen, &chats.badge());
+        if picker.is_open() {
+            picker.draw(&mut screen, &chats);
+        }
         screen.next_frame();
     }
 }

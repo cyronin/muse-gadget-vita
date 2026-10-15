@@ -62,7 +62,7 @@ args = parser.parse_args()
 BIG_TEXT = "badge " * 20000  # 120 KB, so the invoke spans two Noise chunks
 EXPECTED_ASKS = 3 if args.voice else 2
 DEAD_SECONDS = 70
-transcript = {"api": [], "vm": [], "dead_vm": [], "chats": [], "subscribes": 0,
+transcript = {"api": [], "vm": [], "dead_vm": [], "chats": [], "subscribes": 0, "subscribe_bodies": [],
               "connections": 0, "voice": None, "knocks": [], "chat_invoke_result": None}
 done = asyncio.Event()
 
@@ -146,6 +146,7 @@ class Vm:
         reply = {"ok": False}
         if (request.verb, path) == ("POST", "/chat/subscribe"):
             transcript["subscribes"] += 1
+            transcript["subscribe_bodies"].append(json.loads(raw_body))
             self.subscription = stream_id
             await self.send_frame(ServiceFrame.response(stream_id, ApplicationResponse(
                 status=200, body=b'{"type":"ack"}\n')))
