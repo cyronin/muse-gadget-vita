@@ -5,6 +5,7 @@ mod input;
 mod report;
 mod screen;
 mod status;
+mod store;
 
 use avatar::{Avatar, Mood};
 use report::Timer;
@@ -20,6 +21,10 @@ fn main() {
         say!("FAIL: avatar.bin is missing or not one tools/avatar.sh wrote");
         return;
     };
+    match store::load() {
+        Ok(saved) => say!("paired as {}", saved.node_id),
+        Err(why) => say!("not paired: {}", why),
+    }
     input::start();
     let mut screen = Screen::open();
     let mut mood = Mood::Boot;

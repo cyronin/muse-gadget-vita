@@ -4,7 +4,9 @@ version = "0.3.0"
 edition = "2021"
 
 [dependencies]
+muse-link = { path = "../link" }
 rustls = { version = "0.23.45", default-features = false }
+serde_json = "1"
 vitasdk-sys = { version = "0.3.3", features = [
     "SceCtrl_stub",
     "SceDisplay_stub",
