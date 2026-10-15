@@ -10,6 +10,7 @@ muse-link = { path = "../link" }
 rustls = { version = "0.23.45", default-features = false }
 serde_json = "1"
 vitasdk-sys = { version = "0.3.3", features = [
+    "SceAudioIn_stub",
     "SceCtrl_stub",
     "SceDisplay_stub",
     "SceLibKernel_stub",

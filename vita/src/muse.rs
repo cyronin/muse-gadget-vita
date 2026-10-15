@@ -60,7 +60,6 @@ pub static TURN: AtomicU8 = AtomicU8::new(NO_QUESTION);
 static TAKE: Mutex<Option<Vec<u8>>> = Mutex::new(None);
 
 /// Hands a WAV recording to Muse as the next question.
-#[allow(dead_code)]
 pub fn ask(wav: Vec<u8>) {
     TURN.store(ASKED, Ordering::Relaxed);
     *TAKE.lock().unwrap() = Some(wav);

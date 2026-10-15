@@ -1,3 +1,4 @@
+mod audio;
 mod avatar;
 mod clock;
 mod files;
@@ -38,6 +39,7 @@ fn main() {
             muse::LINK.store(muse::DOWN, Ordering::Relaxed);
         }
     }
+    audio::start();
     input::start();
 
     let mut screen = Screen::open();
@@ -54,8 +56,7 @@ fn main() {
         };
         let mut turn = muse::TURN.load(Ordering::Relaxed);
         let may_talk = link == Link::Online && turn == muse::NO_QUESTION;
-        // Until the microphone is ported, holding the talk button only shows it.
-        let recording = may_talk && input::talking();
+        audio::TALKING.store(may_talk && input::talking(), Ordering::Relaxed);
         let speech = voice::STATE.load(Ordering::Relaxed);
         if turn == muse::ANSWERED {
             // The turn ends when the reply has been spoken. If it could not
@@ -70,7 +71,7 @@ fn main() {
             }
         }
         let dancing = (muse::DANCE_UNTIL_MS.load(Ordering::Relaxed).wrapping_sub(now_ms) as i32) > 0;
-        let next = match (recording, speech, turn, link) {
+        let next = match (audio::RECORDING.load(Ordering::Relaxed), speech, turn, link) {
             (true, _, _, _) => Mood::Listening,
             (_, voice::SPEAKING, _, _) => Mood::Speaking,
             (_, voice::FAILED, muse::ANSWERED, _) => Mood::Happy,
