@@ -209,9 +209,10 @@ services from a computer. `host-check` makes one HTTPS request, and
 
 ## Known limits
 
-- **Untested on hardware.** It builds, and it follows the PSP app, which
-  ran on a real PSP, but nobody has run it on a Vita yet. Expect the first
-  hardware run to find mistakes, and read the log.
+- **The chat menu has not been tried on a Vita yet.** The rest of the app
+  has run on one. The side-chat protocol is covered by the tests in
+  `tests/`, but the Triangle menu itself has only been built, not run on
+  hardware. If it misbehaves, read the log.
 - **Pairing needs a second device.** There is no way around the missing
   Bluetooth LE.
 - **Keys sit in plain text on the memory card.** That includes the pairing
