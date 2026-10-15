@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 vitasdk-sys = { version = "0.3.3", features = [
     "SceDisplay_stub",
+    "SceLibKernel_stub",
     "SceSysmem_stub",
 ] }
 
