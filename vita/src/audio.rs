@@ -6,8 +6,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use vitasdk_sys as sys;
 
-/// Samples the microphone hands over at a time.
+/// Samples the voice port hands over at a time.
 const GRAIN: usize = 256;
+/// What the raw port might take at 48 kHz. It refused 256 on a real Vita as
+/// an invalid size, so these are tried in turn.
+const RAW_GRAINS: [usize; 3] = [768, 512, 1024];
 /// The rate a take is kept at. The voice note keeps one sample in three of
 /// it, which leaves 8 kHz, about what the PSP sent.
 const RATE: usize = 24_000;
@@ -26,18 +29,20 @@ struct Microphone {
     /// port's 16 kHz.
     group: usize,
     rate: usize,
-    room: [i16; GRAIN],
+    room: Vec<i16>,
 }
 
 impl Microphone {
     /// The raw port at 48 kHz, or failing that the voice port, which only
     /// records at 16 kHz.
     fn open() -> Option<Microphone> {
-        for (kind, rate, group) in [(sys::SCE_AUDIO_IN_PORT_TYPE_RAW, 48_000, 2), (sys::SCE_AUDIO_IN_PORT_TYPE_VOICE, 16_000, 1)] {
-            let port = unsafe { sys::sceAudioInOpenPort(kind, GRAIN as i32, rate, sys::SCE_AUDIO_IN_PARAM_FORMAT_S16_MONO) };
-            crate::say!("audio: mic port {} at {} Hz: {:#x}", kind, rate, port);
+        let raw = RAW_GRAINS.map(|grain| (sys::SCE_AUDIO_IN_PORT_TYPE_RAW, grain, 48_000, 2));
+        let voice = (sys::SCE_AUDIO_IN_PORT_TYPE_VOICE, GRAIN, 16_000, 1);
+        for (kind, grain, rate, group) in raw.into_iter().chain([voice]) {
+            let port = unsafe { sys::sceAudioInOpenPort(kind, grain as i32, rate, sys::SCE_AUDIO_IN_PARAM_FORMAT_S16_MONO) };
+            crate::say!("audio: mic port {} at {} Hz, {} at a time: {:#x}", kind, rate, grain, port);
             if port >= 0 {
-                return Some(Microphone { port, group, rate: rate as usize / group, room: [0; GRAIN] });
+                return Some(Microphone { port, group, rate: rate as usize / group, room: vec![0; grain] });
             }
         }
         None
@@ -60,7 +65,8 @@ fn run() {
     };
     let rate = microphone.rate;
     let (longest, shortest) = (LONGEST_TAKE * rate / RATE, SHORTEST_TAKE * rate / RATE);
-    let mut take: Vec<i16> = Vec::with_capacity(longest + GRAIN);
+    let grain = microphone.room.len() / microphone.group;
+    let mut take: Vec<i16> = Vec::with_capacity(longest + grain);
     loop {
         // The microphone keeps running between takes, so a take starts warm.
         take.clear();
@@ -69,7 +75,7 @@ fn run() {
             continue;
         }
         RECORDING.store(true, Ordering::Relaxed);
-        while TALKING.load(Ordering::Relaxed) && take.len() + GRAIN <= longest {
+        while TALKING.load(Ordering::Relaxed) && take.len() + grain <= longest {
             microphone.hear(&mut take);
         }
         let loudest = take.iter().map(|sample| sample.unsigned_abs()).max().unwrap_or(0);

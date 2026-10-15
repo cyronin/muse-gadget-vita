@@ -24,6 +24,10 @@ use std::sync::atomic::Ordering;
 const PATIENCE_MS: u32 = 45_000;
 /// How long the avatar shows that an answer came when it cannot be spoken.
 const UNSPOKEN_MS: u32 = 3000;
+/// How long the talk button must stay up before the take ends. A resting
+/// finger drops out of the touchscreen's readings for a moment now and then,
+/// and one such moment cut a question short on a real Vita.
+const LET_GO_MS: u32 = 250;
 
 fn main() {
     files::prepare();
@@ -56,6 +60,7 @@ fn main() {
         Place { left: (reply::LEFT - size) / 2, top: (screen::HEIGHT - size) / 2, block: avatar::BLOCK / 2 }
     };
     let mut mood = Mood::Boot;
+    let mut talk_seen_ms: Option<u32> = None;
     let mut since = Timer::start();
     let mut shown_ms = 0;
     loop {
@@ -69,7 +74,11 @@ fn main() {
         let mut turn = muse::TURN.load(Ordering::Relaxed);
         let may_talk = link == Link::Online && turn == muse::NO_QUESTION;
         let held = input::held();
-        let talking = may_talk && held.talk;
+        if held.talk {
+            talk_seen_ms = Some(now_ms);
+        }
+        let holding = talk_seen_ms.is_some_and(|seen_ms| now_ms.wrapping_sub(seen_ms) < LET_GO_MS);
+        let talking = may_talk && holding;
         audio::TALKING.store(talking, Ordering::Relaxed);
         // A new question, or Circle, puts the last exchange away.
         if talking || held.dismiss {
