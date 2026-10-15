@@ -6,10 +6,12 @@ edition = "2021"
 [dependencies]
 rustls = { version = "0.23.45", default-features = false }
 vitasdk-sys = { version = "0.3.3", features = [
+    "SceCtrl_stub",
     "SceDisplay_stub",
     "SceLibKernel_stub",
     "SceRtc_stub",
     "SceSysmem_stub",
+    "SceTouch_stub",
 ] }
 
 [package.metadata.vita]

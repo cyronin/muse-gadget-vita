@@ -1,6 +1,7 @@
 mod avatar;
 mod clock;
 mod files;
+mod input;
 mod report;
 mod screen;
 mod status;
@@ -19,11 +20,20 @@ fn main() {
         say!("FAIL: avatar.bin is missing or not one tools/avatar.sh wrote");
         return;
     };
+    input::start();
     let mut screen = Screen::open();
-    let mood = Mood::Boot;
+    let mut mood = Mood::Boot;
     let mut since = Timer::start();
     let mut shown_ms = 0;
     loop {
+        // Until the microphone is ported, holding the talk button only shows it.
+        let next = if input::talking() { Mood::Listening } else { Mood::Boot };
+        if next != mood {
+            say!("mood {:?}", next);
+            mood = next;
+            shown_ms = 0;
+            since.lap();
+        }
         shown_ms += since.lap();
         avatar.draw(&mut screen, mood, shown_ms);
         status::draw(&mut screen, Link::Connecting, report::now_ms());
