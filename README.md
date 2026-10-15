@@ -214,9 +214,6 @@ services from a computer. `host-check` makes one HTTPS request, and
 
 ## Known limits
 
-- **Untested on hardware.** It builds, and it follows the PSP app, which
-  ran on a real PSP, but nobody has run it on a Vita yet. Expect the first
-  hardware run to find mistakes, and read the log.
 - **Pairing needs a second device.** There is no way around the missing
   Bluetooth LE.
 - **Keys sit in plain text on the memory card.** That includes the pairing
