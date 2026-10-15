@@ -1,4 +1,4 @@
-/* Renders the Muse Gadget SDK's own avatar into a file the PSP app plays.
+/* Renders the Muse Gadget SDK's own avatar into a file the app plays.
  *
  * The SDK's renderer is compiled in from a local clone, see tools/avatar.sh.
  * Its artwork is not under the SDK's Apache licence, so neither it nor what
@@ -8,7 +8,8 @@
  *   "MUSEAV1\0", u16 width, height, colours, frames per second, clips
  *   per clip:  u16 frames, u16 loops (1 or 0)
  *   per frame: u16 colour[colours], u16 edge colour[colours], u8 pixel[width * height]
- * Colours are PSP 5650: red in the low bits.
+ * Colours are the PSP's 5650, red in the low bits, as the PSP app drew them.
+ * The Vita app widens them to 32 bits when it loads the file.
  */
 #include "muse_pixel.c"
 
@@ -23,7 +24,7 @@ typedef struct {
     int loops;
 } clip_t;
 
-/* The order is the app's: src/avatar.rs names clips by these positions. */
+/* The order is the app's: vita/src/avatar.rs names clips by these positions. */
 static const clip_t CLIPS[] = {
     { MUSE_MODE_BOOT, 0, 4, 1 },      { MUSE_MODE_IDLE, 0, 4, 1 },  { MUSE_MODE_LISTENING, 0, 4, 1 },
     { MUSE_MODE_THINKING, 0, 4, 1 },  { MUSE_MODE_SPEAKING, 0, 4, 1 }, { MUSE_MODE_ERROR, 0, 4, 1 },

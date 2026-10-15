@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Give the PSP a Muse pairing. A one-time setup step.
+"""Give the Vita a Muse pairing. A one-time setup step.
 
     tools/pair.py FOLDER
 
-Muse pairs a gadget over Bluetooth LE, and the PSP has no Bluetooth. So a
+Muse pairs a gadget over Bluetooth LE, and the Vita has no Bluetooth LE. So a
 device that has it does the Bluetooth conversation once. What comes out of it
 is small, an identity and a pair of tokens. This takes those from FOLDER,
 checks them, and saves them in state/ for tools/install.py to copy to the
-Memory Stick. From then on the PSP connects to Muse by itself and renews its
+memory card. From then on the Vita connects to Muse by itself and renews its
 own tokens.
 
 FOLDER must hold the two files a Muse gadget client keeps after pairing:
@@ -20,7 +20,7 @@ The Linux client in the Muse Gadget SDK writes exactly these, in
 /var/lib/musegadget or wherever MUSEGADGET_STATE_DIR points. See the README.
 
 Only one device can use an identity at a time, and every renewal replaces the
-tokens. So once the PSP has the pairing, stop and remove the client it came
+tokens. So once the Vita has the pairing, stop and remove the client it came
 from. Treat these files like a password.
 """
 import argparse
@@ -74,7 +74,7 @@ def main():
         path.chmod(0o600)
 
     print("Saved the pairing for homelink-%s in %s." % (mac.replace(":", "")[-6:].lower(), STATE))
-    print("Now stop the client it came from, so the PSP is the only one using it.")
+    print("Now stop the client it came from, so the Vita is the only one using it.")
     print("Next: tools/install.py")
 
 
