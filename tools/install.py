@@ -51,6 +51,9 @@ def main():
     parser.add_argument("--volume", help="the memory card, ux0 (default: the one mounted)")
     parser.add_argument("--sdk-token-file", help="your Muse SDK token (default: .sdk_token)")
     parser.add_argument("--openai-key-file", help="an OpenAI key for the voice (default: .openai_key)")
+    parser.add_argument("--azure-key-file", help="an Azure AI Speech key for the voice (default: .azure_key)")
+    parser.add_argument("--azure-region-file", help="that key's Azure region, such as eastus (default: .azure_region)")
+    parser.add_argument("--azure-voice-file", help="optional: an Azure voice name (default: .azure_voice)")
     parser.add_argument("--no-eject", action="store_true", help="leave the card mounted")
     args = parser.parse_args()
 
@@ -79,10 +82,22 @@ def main():
     token = secret(args.sdk_token_file, ".sdk_token")
     if token:
         (state / "sdk_token.txt").write_text(token)
-    key = secret(args.openai_key_file, ".openai_key")
-    if key:
-        (state / "openai_key.txt").write_text(key)
-    print("voice: %s" % ("on" if (state / "openai_key.txt").exists() else "off, replies will not be spoken"))
+    for option, default, name in [
+        (args.openai_key_file, ".openai_key", "openai_key.txt"),
+        (args.azure_key_file, ".azure_key", "azure_key.txt"),
+        (args.azure_region_file, ".azure_region", "azure_region.txt"),
+        (args.azure_voice_file, ".azure_voice", "azure_voice.txt"),
+    ]:
+        value = secret(option, default)
+        if value:
+            (state / name).write_text(value)
+    if (state / "azure_key.txt").exists() and (state / "azure_region.txt").exists():
+        voice = "on, through Azure AI Speech"
+    elif (state / "openai_key.txt").exists():
+        voice = "on, through OpenAI"
+    else:
+        voice = "off, replies are shown but not spoken"
+    print("voice: %s" % voice)
 
     # macOS leaves "._" companions on FAT volumes. Nothing on the Vita needs them.
     for junk in target.rglob("._*"):

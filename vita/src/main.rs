@@ -1,5 +1,6 @@
 mod audio;
 mod avatar;
+mod azure;
 mod clock;
 mod files;
 mod font;

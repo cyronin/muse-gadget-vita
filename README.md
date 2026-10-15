@@ -33,9 +33,10 @@ This is a port of [wobsoriano/muse-gadget-psp](https://github.com/wobsoriano/mus
   gadget over BLE. A Raspberry Pi or a Linux computer with the SDK's Linux
   client does the one Bluetooth conversation; you then hand the resulting
   identity and tokens to the Vita. See *Pair it with Muse*.
-- **An OpenAI API key, for the voice**, if you want one. Without it the Vita
-  still hears you and shows Muse's answer on the screen, but stays silent.
-  (Muse sends text, not audio — something has to speak it.)
+- **A key for the voice**, if you want one: Azure AI Speech (which has a
+  free monthly allowance) or OpenAI. Without one the Vita still hears you
+  and shows Muse's answer on the screen, but stays silent. (Muse sends
+  text, not audio — something has to speak it.)
 
 ## Install
 
@@ -110,8 +111,16 @@ the client it came from switched off, or remove it.
 
 ### 5. Copy it to the Vita
 
-Put your SDK token in a file named `.sdk_token` in this folder, and an
-OpenAI key in `.openai_key`. Git ignores both.
+Put your SDK token in a file named `.sdk_token` in this folder. For the
+voice, either:
+
+- **Azure AI Speech:** create a Speech resource in the Azure portal, then
+  put one of its keys in `.azure_key` and its region (such as `eastus`)
+  in `.azure_region`. Optionally name a voice in `.azure_voice`; the
+  default is `en-US-JennyNeural`.
+- **OpenAI:** put an API key in `.openai_key`.
+
+When both are there, the Vita uses Azure. Git ignores all of these files.
 
 Put the Vita in VitaShell's **USB mode** (so `ux0` is mounted), then:
 
@@ -179,7 +188,8 @@ tests/          the client against a fake Muse
 - **A voice turn.** The app records at 48 kHz while you hold the talk
   button (16 kHz if the Vita refuses that) and sends it to Muse as an
   8 kHz WAV voice note. Muse answers in text. The app sends that text to
-  OpenAI and plays the 24 kHz audio while it is still arriving.
+  Azure AI Speech or OpenAI and plays the 24 kHz audio while it is still
+  arriving.
 - **Pairing without Bluetooth LE.** The Vita copies `identity.json` and
   `pairing.json` from a Linux client that paired once; from then on it
   renews its own tokens.
@@ -208,13 +218,13 @@ services from a computer. `host-check` makes one HTTPS request, and
 - **Pairing needs a second device.** There is no way around the missing
   Bluetooth LE.
 - **Keys sit in plain text on the memory card.** That includes the pairing
-  and the OpenAI key. Anyone holding the card can read them.
-- **No voice without OpenAI.** There is no offline voice. When the Vita
+  and the voice keys. Anyone holding the card can read them.
+- **No voice without Azure or OpenAI.** There is no offline voice. When the Vita
   cannot speak an answer, it only shows it.
 - **Plain text only.** The screen font is ASCII, so accents lose their
   marks and emoji are left out.
 - **Long answers get cut short.** About the first 420 characters are spoken.
-- **Muse sends text, not audio.** OpenAI makes the voice.
+- **Muse sends text, not audio.** Azure or OpenAI makes the voice.
 
 ## License
 
