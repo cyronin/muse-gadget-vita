@@ -61,6 +61,11 @@ fn azure_account() -> Option<azure::Account> {
     })
 }
 
+/// Whether there is a key on the card to speak with.
+pub fn can_speak() -> bool {
+    azure_account().is_some() || word(KEY).is_some()
+}
+
 fn fetch(text: &str) -> Result<(), String> {
     let samples = SAMPLES.load(Ordering::Relaxed);
     let mut odd: Option<u8> = None;

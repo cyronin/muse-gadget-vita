@@ -57,7 +57,9 @@ fn main() {
 
     let mut screen = Screen::open();
     let mut panel = reply::Panel::new();
-    let mut show_text = reply::wanted();
+    // Without a voice, text is the only way to get the answer.
+    let mut show_text = reply::wanted().unwrap_or(!voice::can_speak());
+    say!("text {} at start", if show_text { "on" } else { "off" });
     let mut text_was_held = false;
     // The note's words and when it goes, while one is up.
     let mut note: Option<(&[u8], u32)> = None;

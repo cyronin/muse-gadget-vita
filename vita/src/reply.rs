@@ -1,6 +1,7 @@
 //! What Muse heard and what it answered, written out beside the avatar, for
 //! when the reply cannot be spoken or the user would rather read it. It is
-//! off until the user turns it on, and the choice is kept on the card.
+//! on by default only when there is no voice, and a choice the user makes
+//! is kept on the card.
 
 use crate::files;
 use crate::font::{self, CELL};
@@ -16,20 +17,21 @@ const COLUMNS: usize = (screen::WIDTH - 16 - LEFT) / CELL;
 const TEXT_COLUMNS: usize = COLUMNS - 1;
 const LINE: usize = CELL + 4;
 const ROWS: usize = (screen::HEIGHT - 2 * TOP) / LINE;
-/// Present, holding "on", while the user wants replies shown as text.
+/// "on" or "off", once the user has chosen.
 const SETTING: &str = "show-text.txt";
 
-/// Whether the user turned the text on, on this run or an earlier one.
-pub fn wanted() -> bool {
-    files::read(SETTING).is_some_and(|file| file.trim_ascii() == b"on")
+/// Whether the user chose to see the text, on this run or an earlier one,
+/// or `None` when they never chose.
+pub fn wanted() -> Option<bool> {
+    match files::read(SETTING)?.trim_ascii() {
+        b"on" => Some(true),
+        b"off" => Some(false),
+        _ => None,
+    }
 }
 
 pub fn set_wanted(on: bool) {
-    if on {
-        files::write(SETTING, b"on");
-    } else {
-        files::remove(SETTING);
-    }
+    files::write(SETTING, if on { b"on" } else { b"off" });
 }
 
 /// How often a held Up or Down moves the text a line.

@@ -142,8 +142,9 @@ talk, release to send. Press **PS** to quit to LiveArea.
 
 Press **Triangle** to have what Muse heard and what it answers written out
 beside the avatar as the reply arrives, which makes the Vita useful without
-a voice too. It is off until you turn it on, and the Vita remembers your
-choice. While it is on, **Up** and **Down** scroll a long answer, **Circle**
+a voice too. It starts on when there is no voice key on the card and off
+when there is one; press Triangle to change that, and the Vita remembers
+your choice. While it is on, **Up** and **Down** scroll a long answer, **Circle**
 puts it away, and talking again starts afresh.
 
 The corner of the screen shows whether the Vita can reach Muse, and the
@@ -157,7 +158,7 @@ avatar shows what it is doing:
 | The avatar in blue | Listening while you hold R |
 | The avatar in pink, with thought dots | Your question is on its way, or Muse is answering |
 | The avatar in green, with sound waves | Speaking the answer |
-| Hearts for a few seconds, no sound | Muse answered and the Vita could not speak it. Press Triangle to read it. |
+| Hearts for a few seconds, no sound | Muse answered and the Vita could not speak it. Press Triangle to read it, if the text is off. |
 
 **What Muse can do to the Vita.** Ask Muse from any device:
 
