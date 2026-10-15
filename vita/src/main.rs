@@ -2,16 +2,18 @@ mod audio;
 mod avatar;
 mod clock;
 mod files;
+mod font;
 mod input;
 mod muse;
 mod net;
+mod reply;
 mod report;
 mod screen;
 mod status;
 mod store;
 mod voice;
 
-use avatar::{Avatar, Mood};
+use avatar::{Avatar, Mood, Place};
 use report::Timer;
 use screen::Screen;
 use status::Link;
@@ -46,6 +48,13 @@ fn main() {
     input::start();
 
     let mut screen = Screen::open();
+    let mut panel = reply::Panel::new();
+    let mut place = avatar.centred();
+    // Half size, centred in the room left of the text.
+    let beside_text = {
+        let size = avatar.side() * avatar::BLOCK / 2;
+        Place { left: (reply::LEFT - size) / 2, top: (screen::HEIGHT - size) / 2, block: avatar::BLOCK / 2 }
+    };
     let mut mood = Mood::Boot;
     let mut since = Timer::start();
     let mut shown_ms = 0;
@@ -59,8 +68,20 @@ fn main() {
         };
         let mut turn = muse::TURN.load(Ordering::Relaxed);
         let may_talk = link == Link::Online && turn == muse::NO_QUESTION;
-        audio::TALKING.store(may_talk && input::talking(), Ordering::Relaxed);
-        let speech = voice::STATE.load(Ordering::Relaxed);
+        let held = input::held();
+        let talking = may_talk && held.talk;
+        audio::TALKING.store(talking, Ordering::Relaxed);
+        // A new question, or Circle, puts the last exchange away.
+        if talking || held.dismiss {
+            reply::clear();
+        }
+        let mut speech = voice::STATE.load(Ordering::Relaxed);
+        if speech == voice::FAILED && turn == muse::NO_QUESTION {
+            // Something Muse said by itself could not be spoken. It is on
+            // the screen, and the voice is free for the next.
+            voice::STATE.store(voice::SILENT, Ordering::Relaxed);
+            speech = voice::SILENT;
+        }
         if turn == muse::ANSWERED {
             // The turn ends when the reply has been spoken. If it could not
             // be, the avatar celebrates the answer in silence for a moment.
@@ -91,7 +112,18 @@ fn main() {
             since.lap();
         }
         shown_ms += since.lap();
-        avatar.draw(&mut screen, mood, shown_ms);
+        let has_text = panel.update();
+        let wanted = if has_text { beside_text } else { avatar.centred() };
+        if wanted != place {
+            place = wanted;
+            screen.wipe();
+        }
+        screen.begin();
+        avatar.draw(&mut screen, mood, shown_ms, place);
+        if has_text {
+            panel.scroll(held.up, held.down, now_ms);
+            panel.draw(&mut screen);
+        }
         status::draw(&mut screen, link, now_ms);
         screen.next_frame();
     }

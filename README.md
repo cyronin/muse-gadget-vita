@@ -33,9 +33,9 @@ This is a port of [wobsoriano/muse-gadget-psp](https://github.com/wobsoriano/mus
   gadget over BLE. A Raspberry Pi or a Linux computer with the SDK's Linux
   client does the one Bluetooth conversation; you then hand the resulting
   identity and tokens to the Vita. See *Pair it with Muse*.
-- **An OpenAI API key, for the voice.** Without one the Vita still hears you
-  and Muse still answers, but the Vita stays silent. (Muse sends text, not
-  audio — something has to speak it.)
+- **An OpenAI API key, for the voice**, if you want one. Without it the Vita
+  still hears you and shows Muse's answer on the screen, but stays silent.
+  (Muse sends text, not audio — something has to speak it.)
 
 ## Install
 
@@ -131,6 +131,11 @@ run **Muse** from the LiveArea.
 Hold the **right shoulder button** (or keep a finger on the touchscreen) to
 talk, release to send. Press **PS** to quit to LiveArea.
 
+What Muse heard and what it answers are written out beside the avatar as
+the reply arrives, so the Vita is useful without a voice too. **Up** and
+**Down** scroll a long answer, **Circle** puts it away, and talking again
+starts afresh.
+
 The corner of the screen shows whether the Vita can reach Muse, and the
 avatar shows what it is doing:
 
@@ -142,7 +147,7 @@ avatar shows what it is doing:
 | The avatar in blue | Listening while you hold R |
 | The avatar in pink, with thought dots | Your question is on its way, or Muse is answering |
 | The avatar in green, with sound waves | Speaking the answer |
-| Hearts for a few seconds, no sound | Muse answered and the Vita could not speak it |
+| Hearts for a few seconds, no sound | Muse answered and the Vita could not speak it. The answer is on the screen. |
 
 **What Muse can do to the Vita.** Ask Muse from any device:
 
@@ -205,7 +210,9 @@ services from a computer. `host-check` makes one HTTPS request, and
 - **Keys sit in plain text on the memory card.** That includes the pairing
   and the OpenAI key. Anyone holding the card can read them.
 - **No voice without OpenAI.** There is no offline voice. When the Vita
-  cannot speak an answer, all you get is the hearts.
+  cannot speak an answer, it only shows it.
+- **Plain text only.** The screen font is ASCII, so accents lose their
+  marks and emoji are left out.
 - **Long answers get cut short.** About the first 420 characters are spoken.
 - **Muse sends text, not audio.** OpenAI makes the voice.
 

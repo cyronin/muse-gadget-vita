@@ -24,6 +24,8 @@ pub struct Screen {
     buffers: [*mut u32; 2],
     /// The buffer being drawn, the one the display is not showing.
     back: usize,
+    /// Buffers still holding a layout the screen has moved on from.
+    stale: [bool; 2],
 }
 
 fn buffer(name: &[u8]) -> *mut u32 {
@@ -45,7 +47,7 @@ fn buffer(name: &[u8]) -> *mut u32 {
 
 impl Screen {
     pub fn open() -> Screen {
-        let mut screen = Screen { buffers: [buffer(b"screen0\0"), buffer(b"screen1\0")], back: 1 };
+        let mut screen = Screen { buffers: [buffer(b"screen0\0"), buffer(b"screen1\0")], back: 1, stale: [false; 2] };
         screen.show(0);
         screen
     }
@@ -65,13 +67,33 @@ impl Screen {
         }
     }
 
+    /// Marks both buffers for clearing, when what is drawn where changes.
+    pub fn wipe(&mut self) {
+        self.stale = [true; 2];
+    }
+
+    /// Call before drawing a frame. Clears the buffer about to be drawn if
+    /// it still holds the last layout.
+    pub fn begin(&mut self) {
+        if core::mem::take(&mut self.stale[self.back]) {
+            unsafe { core::slice::from_raw_parts_mut(self.buffers[self.back], STRIDE * HEIGHT) }.fill(BLACK);
+        }
+    }
+
+    /// Fills `width` pixels of `height` rows from `left`, `top`.
+    pub fn fill(&mut self, left: usize, top: usize, width: usize, height: usize, colour: u32) {
+        for y in top..top + height {
+            self.row(y)[left..left + width].fill(colour);
+        }
+    }
+
     pub fn row(&mut self, y: usize) -> &mut [u32] {
         assert!(y < HEIGHT);
         unsafe { core::slice::from_raw_parts_mut(self.buffers[self.back].add(y * STRIDE), WIDTH) }
     }
 
     /// Shows what was drawn from the next frame on, and waits for it. Every
-    /// frame draws the same places, so each buffer stays whole.
+    /// frame of one layout draws the same places, so each buffer stays whole.
     pub fn next_frame(&mut self) {
         self.show(self.back);
         unsafe { sys::sceDisplayWaitVblankStart() };

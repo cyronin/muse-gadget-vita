@@ -1,7 +1,7 @@
 //! The connection to Muse, on a thread of its own. Reaching Muse takes
 //! seconds at a time, and the avatar must keep moving meanwhile.
 
-use crate::{clock, net, store, voice};
+use crate::{clock, net, reply, store, voice};
 use muse_link::{secure, App, Client, Clock, Config, Event, Lost, Net, Poll, Security, State};
 use std::sync::atomic::{AtomicU32, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
@@ -143,23 +143,26 @@ impl App for Avatar {
             Event::Log(line) => crate::say!("muse: {}", line),
             Event::Heard(text) => {
                 crate::say!("heard: {}", text);
+                reply::heard(text);
                 self.unheard = None;
             }
-            Event::Reply(_) => {}
+            Event::Reply(text) => reply::reply(text),
             // The stream has paused, which is almost always the whole reply,
             // a couple of seconds before `Done` confirms it.
             Event::Settled(text) => {
                 crate::say!("settled: {} characters", text.len());
+                reply::reply(text);
                 self.speak(text);
             }
             Event::Done(text) => {
                 crate::say!("reply: {}", text);
+                reply::reply(text);
                 self.speak(text);
                 self.spoken = false;
                 self.unheard = None;
                 TURN.store(ANSWERED, Ordering::Relaxed);
             }
-            Event::Failed { why, .. } => {
+            Event::Failed { text, why } => {
                 self.spoken = false;
                 if let Some((_, signal)) = net::wifi() {
                     crate::say!("signal {} of 100 when the question failed", signal);
@@ -169,6 +172,7 @@ impl App for Avatar {
                     self.again = Again::Wanted { since_ms: crate::report::now_ms() };
                 } else {
                     crate::say!("question failed: {}", why);
+                    reply::reply(if text.trim().is_empty() { "Muse could not answer that. Try again." } else { text });
                     self.unheard = None;
                     TURN.store(NO_QUESTION, Ordering::Relaxed);
                 }
@@ -185,6 +189,7 @@ impl App for Avatar {
                 if voice::STATE.load(Ordering::Relaxed) != voice::SILENT {
                     return Err("the Vita is already speaking".into());
                 }
+                reply::said(text);
                 voice::say(text);
                 Ok("{}".into())
             }

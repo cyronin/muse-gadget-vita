@@ -45,10 +45,20 @@ pub struct Avatar {
     frames: Vec<Frame>,
 }
 
-/// Screen pixels per avatar pixel. The last row and column of each block are
-/// drawn in the edge colour, which is the SDK's grid texture. Twice the
-/// PSP's, so the avatar fills the same share of the larger screen.
-const BLOCK: usize = 8;
+/// Screen pixels per avatar pixel at its largest. The last row and column
+/// of each block are drawn in the edge colour, which is the SDK's grid
+/// texture. Twice the PSP's, so the avatar fills the same share of the
+/// larger screen.
+pub const BLOCK: usize = 8;
+
+/// Where the avatar goes on the screen, and how large.
+#[derive(Clone, Copy, PartialEq)]
+pub struct Place {
+    pub left: usize,
+    pub top: usize,
+    /// Screen pixels per avatar pixel.
+    pub block: usize,
+}
 
 /// A colour from the file, which holds the PSP's 16 bits with red low.
 fn from_psp(colour: u16) -> u32 {
@@ -95,22 +105,32 @@ impl Avatar {
         Some(Avatar { file, side, frames_per_second, clips, frames })
     }
 
-    /// Draws `mood` as it looks `since_ms` after it began, centred on the screen.
-    pub fn draw(&self, screen: &mut Screen, mood: Mood, since_ms: u32) {
+    /// Avatar pixels across, and down.
+    pub fn side(&self) -> usize {
+        self.side
+    }
+
+    /// Centred on the screen at the largest size.
+    pub fn centred(&self) -> Place {
+        let size = self.side * BLOCK;
+        Place { left: (screen::WIDTH - size) / 2, top: (screen::HEIGHT - size) / 2, block: BLOCK }
+    }
+
+    /// Draws `mood` as it looks `since_ms` after it began, at `place`.
+    pub fn draw(&self, screen: &mut Screen, mood: Mood, since_ms: u32, place: Place) {
         let clip = &self.clips[mood as usize];
         let played = since_ms as usize * self.frames_per_second / 1000;
         let frame = &self.frames[clip.first + if clip.loops { played % clip.frames } else { played.min(clip.frames - 1) }];
         let pixels = &self.file[frame.pixels..][..self.side * self.side];
-        let left = (screen::WIDTH - self.side * BLOCK) / 2;
-        let top = (screen::HEIGHT - self.side * BLOCK) / 2;
+        let Place { left, top, block: size } = place;
         for (y, cells) in pixels.chunks(self.side).enumerate() {
-            for line in 0..BLOCK {
-                let row = &mut screen.row(top + y * BLOCK + line)[left..left + self.side * BLOCK];
-                let edge_line = line == BLOCK - 1;
-                for (block, &cell) in row.chunks_mut(BLOCK).zip(cells) {
+            for line in 0..size {
+                let row = &mut screen.row(top + y * size + line)[left..left + self.side * size];
+                let edge_line = line == size - 1;
+                for (block, &cell) in row.chunks_mut(size).zip(cells) {
                     let (plain, edge) = (frame.plain[cell as usize], frame.edge[cell as usize]);
-                    block[..BLOCK - 1].fill(if edge_line { edge } else { plain });
-                    block[BLOCK - 1] = edge;
+                    block[..size - 1].fill(if edge_line { edge } else { plain });
+                    block[size - 1] = edge;
                 }
             }
         }
